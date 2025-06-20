@@ -1,13 +1,3 @@
-# ======================================================================================
-# --- PARCHE PARA SQLITE3 EN STREAMLIT CLOUD ---
-try:
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-except ImportError:
-    pass
-# ======================================================================================
-
 import streamlit as st
 import os
 import sqlite3
@@ -33,7 +23,17 @@ from langdetect import detect, LangDetectException
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from audio_recorder_streamlit import audio_recorder
-#¡Hola! Soy el asistente virtual del CSDB pero me puedes decir Dominguito. / Hello! I'm the CSDB virtual assistant but you can call me Dominguito.
+
+# ======================================================================================
+# --- PARCHE PARA SQLITE3 EN STREAMLIT CLOUD ---
+try:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass
+# ======================================================================================
+
 # --- CONFIGURACIÓN ---
 CONFIG = {
     "PAGE_TITLE": "CSDB Assistant",
@@ -43,31 +43,27 @@ CONFIG = {
     "APP_SUBHEADER": "Hello I'm Dominguito! I am here to answer your questions based on the information from the official page.",
     "WELCOME_MESSAGE": "¿En qué puedo ayudarte? / How can I help you?",
     "SPINNER_MESSAGE": "Generating response...",
-    # !!! CAMBIO AQUÍ: Ahora es la RUTA DE LA CARPETA, no una base de nombre de archivo !!!
     "PDF_DOCUMENT_BASE_PATH": "documentos", # Path to the folder containing all PDF documents
     "MAX_PDF_DOCUMENTS": 100, # This setting is now less relevant as we load all PDFs in the folder
     "OFFICIAL_WEBSITE_URL": "https://colegiosantodomingo.edu.co/",
     "WEBSITE_LINK_TEXT": "school´s official page",
     "CSS_FILE_PATH": "styles.css",
-    # --- NUEVAS CONFIGURACIONES PARA ICONOS PERSONALIZADOS ---
     "ASSISTANT_AVATAR": "miniPhotos/assistantPhoto.png",  # Tu imagen del asistente
     "USER_AVATAR": "miniPhotos/user_avatar.png"  # Tu imagen del usuario
 }
 
-#
 # --- CONFIGURACIÓN MULTILINGÜE ---
 LANG_CONFIG = {
     "es": {
         "tts_voice": {"language_code": "es-US", "name": "es-US-Standard-B"},
         "prompt_template": """
-            Eres un asistente experto del Colegio Santo Domingo Bilingüe . Tu única función es responder preguntas basándote en el contenido de los documentos institucionales que se te proporcionan en el 'Contexto'.
+            Eres un asistente experto del Colegio Santo Domingo Bilingüe. Tu única función es responder preguntas basándote en el contenido de los documentos institucionales que se te proporcionan en el 'Contexto'.
             Instrucciones Críticas:
             1. Búsqueda Exhaustiva: Antes de responder, revisa CUIDADOSAMENTE y de forma COMPLETA todo el 'Contexto'. La respuesta SIEMPRE estará en ese texto.
             2. Respuesta: Si encuentras la respuesta, preséntala de manera clara y concisa y añade información relacionada para ser más amable.
             3. Manejo de Incertidumbre: Solo si después de una búsqueda exhaustiva no encuentras una respuesta, indica amablemente que no tienes la información específica en los documentos institucionales o en la pagina.
-            4. Fuentes : Menciona de donde sacaste la informacion presentada , mas especificamente el documento el cual fue extraido la informacion y la pagina de el documento, siempre al final de cada respuesta mencionalo explicitamente.
-            5. Regla Critica : evita decir "Extraído del contexto proporcionado." y di exactamente de que documento lo extraiste.
-
+            4. Fuentes: Menciona de donde sacaste la informacion presentada, incluyendo el nombre exacto del documento y el número de página. Por ejemplo: "(Fuente: Nombre_del_Documento.pdf, Página: X)". Siempre al final de cada respuesta menciónalo explícitamente.
+            5. Regla Critica: evita decir "Extraído del contexto proporcionado." y di exactamente de que documento lo extraiste.
 
             Contexto: <context>{context}</context>
             Pregunta: {input}
@@ -82,7 +78,7 @@ LANG_CONFIG = {
             1. Exhaustive Search: Before answering, CAREFULLY and COMPLETELY review all the 'Context'. The answer will ALWAYS be in that text.
             2. Answer: If you find the answer, present it clearly and concisely and add related information to be more friendly.
             3. Handling Uncertainty: Only if after an exhaustive search you do not find an answer, kindly indicate that you do not have the information in the institutional documents neither on the school's page.
-            4. Sources: Mention where you got the presented information from, more specifically the document from which the information was extracted and the page of the document; always mention it explicitly at the end of each response.
+            4. Sources: Mention where you got the presented information from, including the exact document name and page number. For example: "(Source: Document_Name.pdf, Page: X)". Always mention it explicitly at the end of each response.
             5. Critical Rule: avoid saying 'Extracted from the provided context' and specify exactly which document you extracted it from.
             Context: <context>{context}</context>
             Question: {input}
@@ -366,6 +362,28 @@ def main():
             
             response = rag_chain.invoke({"input": prompt})
             respuesta_ia = response.get("answer", "No pude encontrar una respuesta.")
+
+            # --- Extracting and appending source information ---
+            source_info = []
+            if "context" in response and response["context"]:
+                seen_sources = set() # To avoid duplicate source listings
+                for doc in response["context"]:
+                    source = doc.metadata.get("source")
+                    page = doc.metadata.get("page")
+                    if source and page is not None:
+                        # Clean up the source path to just the filename
+                        filename = os.path.basename(source)
+                        info_string = f"(Fuente: {filename}, Página: {page})"
+                        if info_string not in seen_sources:
+                            source_info.append(info_string)
+                            seen_sources.add(info_string)
+            
+            if source_info:
+                respuesta_ia += "\n\n" + (
+                    "Fuentes consultadas: " if lang_code == "es" else "Consulted sources: "
+                ) + "; ".join(source_info)
+            # --- End of source information extraction ---
+
             audio_content = text_to_speech(tts_client, respuesta_ia, selected_lang_config["tts_voice"])
 
             # Añade la respuesta final al historial de mensajes.
