@@ -54,6 +54,7 @@ CONFIG = {
     "USER_AVATAR": "miniPhotos/user_avatar.png"  # Tu imagen del usuario
 }
 
+#
 # --- CONFIGURACIÓN MULTILINGÜE ---
 LANG_CONFIG = {
     "es": {
@@ -63,9 +64,8 @@ LANG_CONFIG = {
             Instrucciones Críticas:
             1. Búsqueda Exhaustiva: Antes de responder, revisa CUIDADOSAMENTE y de forma COMPLETA todo el 'Contexto'. La respuesta SIEMPRE estará en ese texto.
             2. Respuesta: Si encuentras la respuesta, preséntala de manera clara y concisa y añade información relacionada para ser más amable.
-            3. Manejo de Incertidumbre: Solo si después de una búsqueda exhaustiva no encuentras una respuesta, indica amablemente que no tienes la información específica.
-            4. Regla : nunca menciones que sacaste la informacion de los documentos que te di , solo di que lo sacaste de la pagina del colegio o de documentos institucionales.
-            5. Fuentes : Menciona de donde sacaste la informacion presentada , mas especificamente el documento y la pagina, siempre al final de cada respuesta mencionalo explicitamente
+            3. Manejo de Incertidumbre: Solo si después de una búsqueda exhaustiva no encuentras una respuesta, indica amablemente que no tienes la información específica en los documentos institucionales o en la pagina.
+            4. Fuentes : Menciona de donde sacaste la informacion presentada , mas especificamente el documento el cual fue extraido la informacion y la pagina de el documento, siempre al final de cada respuesta mencionalo explicitamente.
             Contexto: <context>{context}</context>
             Pregunta: {input}
             Respuesta:
@@ -78,9 +78,8 @@ LANG_CONFIG = {
             Critical Instructions:
             1. Exhaustive Search: Before answering, CAREFULLY and COMPLETELY review all the 'Context'. The answer will ALWAYS be in that text.
             2. Answer: If you find the answer, present it clearly and concisely and add related information to be more friendly.
-            3. Handling Uncertainty: Only if after an exhaustive search you do not find an answer, kindly indicate that you do not have the information.
-            4. Rule: never mention that you got the information from the documents I gave you, just say that you got it from the school's website or institutional documents.
-            5. Sources: Mention where you obtained the presented information, more specifically the document and the page, always explicitly state it at the end of each response.
+            3. Handling Uncertainty: Only if after an exhaustive search you do not find an answer, kindly indicate that you do not have the information in the institutional documents neither on the school's page.
+            4. Sources: Mention where you got the presented information from, more specifically the document from which the information was extracted and the page of the document; always mention it explicitly at the end of each response.
             Context: <context>{context}</context>
             Question: {input}
             Answer:
