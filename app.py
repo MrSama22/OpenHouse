@@ -38,18 +38,20 @@ from audio_recorder_streamlit import audio_recorder
 CONFIG = {
     "PAGE_TITLE": "CSDB Assistant",
     "PAGE_ICON": "🎓",
-    "HEADER_IMAGE": "logo3.png",
+    "HEADER_IMAGE": "logos/logo3.png",
     "APP_TITLE": "🎓 Virtual Assistant of the Santo Domingo Bilingual School",
     "APP_SUBHEADER": "Hello I'm Dominguito! I am here to answer your questions based on the information from the official page.",
     "WELCOME_MESSAGE": "¿En qué puedo ayudarte? / How can I help you?",
     "SPINNER_MESSAGE": "Generating response...",
-    "PDF_DOCUMENT_PATH": "documento.pdf",
+    # !!! CAMBIO AQUÍ: Ahora es la RUTA DE LA CARPETA, no una base de nombre de archivo !!!
+    "PDF_DOCUMENT_BASE_PATH": "documentos", # Path to the folder containing all PDF documents
+    "MAX_PDF_DOCUMENTS": 100, # This setting is now less relevant as we load all PDFs in the folder
     "OFFICIAL_WEBSITE_URL": "https://colegiosantodomingo.edu.co/",
     "WEBSITE_LINK_TEXT": "school´s official page",
     "CSS_FILE_PATH": "styles.css",
     # --- NUEVAS CONFIGURACIONES PARA ICONOS PERSONALIZADOS ---
-    "ASSISTANT_AVATAR": "assistantPhoto.png",  # Tu imagen del asistente
-    "USER_AVATAR": "user_avatar.png"  # Tu imagen del usuario
+    "ASSISTANT_AVATAR": "miniPhotos/assistantPhoto.png",  # Tu imagen del asistente
+    "USER_AVATAR": "miniPhotos/user_avatar.png"  # Tu imagen del usuario
 }
 
 # --- CONFIGURACIÓN MULTILINGÜE ---
@@ -62,7 +64,8 @@ LANG_CONFIG = {
             1. Búsqueda Exhaustiva: Antes de responder, revisa CUIDADOSAMENTE y de forma COMPLETA todo el 'Contexto'. La respuesta SIEMPRE estará en ese texto.
             2. Respuesta: Si encuentras la respuesta, preséntala de manera clara y concisa y añade información relacionada para ser más amable.
             3. Manejo de Incertidumbre: Solo si después de una búsqueda exhaustiva no encuentras una respuesta, indica amablemente que no tienes la información específica.
-            4. Regla : nunca menciones que sacaste la informacion de el documento que te di , solo di que lo sacaste de la pagina del colegio o de unos documentos institucionales.
+            4. Regla : nunca menciones que sacaste la informacion de los documentos que te di , solo di que lo sacaste de la pagina del colegio o de documentos institucionales.
+            5. Fuentes : Menciona de donde sacaste la informacion presentada , mas especificamente el documento y la pagina, siempre al final de cada respuesta mencionalo explicitamente
             Contexto: <context>{context}</context>
             Pregunta: {input}
             Respuesta:
@@ -76,7 +79,8 @@ LANG_CONFIG = {
             1. Exhaustive Search: Before answering, CAREFULLY and COMPLETELY review all the 'Context'. The answer will ALWAYS be in that text.
             2. Answer: If you find the answer, present it clearly and concisely and add related information to be more friendly.
             3. Handling Uncertainty: Only if after an exhaustive search you do not find an answer, kindly indicate that you do not have the information.
-            4. Rule: never mention that you got the information from the document I gave you, just say that you got it from the school's website or an institutional document.
+            4. Rule: never mention that you got the information from the documents I gave you, just say that you got it from the school's website or institutional documents.
+            5. Sources: Mention where you obtained the presented information, more specifically the document and the page, always explicitly state it at the end of each response.
             Context: <context>{context}</context>
             Question: {input}
             Answer:
@@ -217,14 +221,36 @@ def verify_credentials_and_get_clients():
 @st.cache_resource
 def initialize_rag_components(_llm):
     try:
-        if not os.path.exists(CONFIG["PDF_DOCUMENT_PATH"]):
-            st.error(f"Error: No se encontró el documento PDF en la ruta: {CONFIG['PDF_DOCUMENT_PATH']}", icon="🚨")
+        pdf_folder_path = CONFIG["PDF_DOCUMENT_BASE_PATH"]
+        
+        if not os.path.isdir(pdf_folder_path):
+            st.error(f"Error: La carpeta de documentos PDF '{pdf_folder_path}' no existe o no es un directorio válido.", icon="🚨")
+            return None
+
+        all_docs = []
+        found_pdfs = False
+        
+        # Iterar sobre todos los archivos en la carpeta
+        for filename in os.listdir(pdf_folder_path):
+            if filename.lower().endswith(".pdf"):
+                file_path = os.path.join(pdf_folder_path, filename)
+                try:
+                    loader = PyPDFLoader(file_path)
+                    all_docs.extend(loader.load())
+                    found_pdfs = True
+                except Exception as e:
+                    st.warning(f"No se pudo cargar el archivo PDF '{filename}': {e}", icon="⚠️")
+        
+        if not found_pdfs:
+            st.error(f"Error: No se encontró ningún documento PDF en la carpeta: {pdf_folder_path}", icon="🚨")
             return None
         
-        loader = PyPDFLoader(CONFIG["PDF_DOCUMENT_PATH"])
-        docs = loader.load()
+        if not all_docs:
+            st.error("Error: No se pudo extraer contenido de ningún documento PDF encontrado.", icon="🚨")
+            return None
+
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        chunks = text_splitter.split_documents(docs)
+        chunks = text_splitter.split_documents(all_docs)
         
         api_key = st.secrets.get("GOOGLE_API_KEY")
         embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
@@ -285,8 +311,12 @@ def main():
     if not api_key:
         st.error("Error: GOOGLE_API_KEY no está configurada.", icon="🚨")
         st.stop()
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key, temperature=0)
+    
+    # Using gemini-1.5-pro for better understanding of complex documents including tables.
+    # Note: This model might have different cost implications than gemini-1.5-flash.
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=api_key, temperature=0)
     retriever = initialize_rag_components(llm)
+    
     if not all([tts_client, stt_client, retriever, llm]):
         st.error("La aplicación no puede continuar debido a un error de inicialización.", icon="🛑")
         st.stop()
