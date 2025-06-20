@@ -62,8 +62,8 @@ LANG_CONFIG = {
             1. Búsqueda Exhaustiva: Antes de responder, revisa CUIDADOSAMENTE y de forma COMPLETA todo el 'Contexto'. La respuesta SIEMPRE estará en ese texto.
             2. Respuesta: Si encuentras la respuesta, preséntala de manera clara y concisa y añade información relacionada para ser más amable.
             3. Manejo de Incertidumbre: Solo si después de una búsqueda exhaustiva no encuentras una respuesta, indica amablemente que no tienes la información específica en los documentos institucionales o en la pagina.
-            4. Fuentes: Menciona de donde sacaste la informacion presentada, incluyendo el nombre exacto del documento y el número de página. Por ejemplo: "(Fuente: Nombre_del_Documento.pdf, Página: X)". Siempre al final de cada respuesta menciónalo explícitamente.
-            5. Regla Critica: evita decir "Extraído del contexto proporcionado." y di exactamente de que documento lo extraiste.
+            4. Fuentes: No menciones de dónde sacaste la información. Solo proporciona la respuesta directamente.
+            5. Regla Crítica: Evita decir "Extraído del contexto proporcionado." o cualquier frase similar sobre la fuente.
 
             Contexto: <context>{context}</context>
             Pregunta: {input}
@@ -78,8 +78,8 @@ LANG_CONFIG = {
             1. Exhaustive Search: Before answering, CAREFULLY and COMPLETELY review all the 'Context'. The answer will ALWAYS be in that text.
             2. Answer: If you find the answer, present it clearly and concisely and add related information to be more friendly.
             3. Handling Uncertainty: Only if after an exhaustive search you do not find an answer, kindly indicate that you do not have the information in the institutional documents neither on the school's page.
-            4. Sources: Mention where you got the presented information from, including the exact document name and page number. For example: "(Source: Document_Name.pdf, Page: X)". Always mention it explicitly at the end of each response.
-            5. Critical Rule: avoid saying 'Extracted from the provided context' and specify exactly which document you extracted it from.
+            4. Sources: Do not mention where you got the information from. Just provide the answer directly.
+            5. Critical Rule: Avoid saying 'Extracted from the provided context' or any similar phrase about the source.
             Context: <context>{context}</context>
             Question: {input}
             Answer:
@@ -311,8 +311,6 @@ def main():
         st.error("Error: GOOGLE_API_KEY no está configurada.", icon="🚨")
         st.stop()
     
-    # Using gemini-1.5-pro for better understanding of complex documents including tables.
-    # Note: This model might have different cost implications than gemini-1.5-flash.
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=api_key, temperature=0)
     retriever = initialize_rag_components(llm)
     
@@ -363,26 +361,8 @@ def main():
             response = rag_chain.invoke({"input": prompt})
             respuesta_ia = response.get("answer", "No pude encontrar una respuesta.")
 
-            # --- Extracting and appending source information ---
-            source_info = []
-            if "context" in response and response["context"]:
-                seen_sources = set() # To avoid duplicate source listings
-                for doc in response["context"]:
-                    source = doc.metadata.get("source")
-                    page = doc.metadata.get("page")
-                    if source and page is not None:
-                        # Clean up the source path to just the filename
-                        filename = os.path.basename(source)
-                        info_string = f"(Fuente: {filename}, Página: {page})"
-                        if info_string not in seen_sources:
-                            source_info.append(info_string)
-                            seen_sources.add(info_string)
-            
-            if source_info:
-                respuesta_ia += "\n\n" + (
-                    "Fuentes consultadas: " if lang_code == "es" else "Consulted sources: "
-                ) + "; ".join(source_info)
-            # --- End of source information extraction ---
+            # --- Removed the source information extraction and appending block ---
+            # The AI's response will now only contain 'respuesta_ia'
 
             audio_content = text_to_speech(tts_client, respuesta_ia, selected_lang_config["tts_voice"])
 
